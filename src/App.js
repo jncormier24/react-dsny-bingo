@@ -1,6 +1,9 @@
 import React from 'react'
+import { BrowserRouter as Router, Route, Link } from 'react-router-dom'
 import firebase, { auth, provider } from './base'
 import './App.css'
+import Game from './components/Game'
+import Admin from './components/Admin'
 
 class App extends React.Component {
   constructor (props) {
@@ -11,12 +14,14 @@ class App extends React.Component {
       user: null
     }
     this.itemsRef = firebase.database().ref('items')
-    this.handleChange = this.handleChange.bind(this)
-    this.addItem = this.addItem.bind(this)
-    this.removeItem = this.removeItem.bind(this)
   }
   // Set the items list
   componentDidMount () {
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        this.setState({ user })
+      }
+    })
     this.itemsRef.on('value', (snapshot) => {
       let items = snapshot.val()
       let newState = []
@@ -32,13 +37,13 @@ class App extends React.Component {
     })
   }
   // watch for state change on the text field
-  handleChange (e) {
+  handleChange = (e) => {
     this.setState({
       [e.target.name]: e.target.value
     })
   }
   // add an item to the list of items
-  addItem (e) {
+  addItem = (e) => {
     e.preventDefault()
     const item = {
       text: this.state.currentItem
@@ -49,9 +54,28 @@ class App extends React.Component {
     })
   }
   // remove an item from the list of items
-  removeItem (itemID) {
+  removeItem = (itemID) => {
     const itemRef = firebase.database().ref(`/items/${itemID}`)
     itemRef.remove()
+  }
+  login () {
+    auth
+      .signInWithRedirect(provider)
+      .then((result) => {
+        const user = result.user
+        this.setState({
+          user
+        })
+      })
+  }
+  logout = () => {
+    auth
+      .signOut()
+      .then(() => {
+        this.setState({
+          user: null
+        })
+      })
   }
   render () {
     return (
@@ -59,31 +83,27 @@ class App extends React.Component {
         <header>
           <div className='wrapper'>
             <h1>Dsny Bingo!</h1>
+            {
+              this.state.user
+              ? <button onClick={this.logout}>Logout</button>
+              : <button onClick={this.login}>Login</button>
+            }
           </div>
         </header>
         <div className='container'>
-          <section className='add-item'>
-            <form onSubmit={this.addItem}>
-              <input type='text' name='currentItem' placeholder='Add a bingo Item' value={this.state.currentItem} onChange={this.handleChange} />
-              <button>Add Item</button>
-            </form>
-          </section>
-          <section className='displayItem'>
-            <div className='wrapper'>
-              <ul>
-                {
-                  this.state.items.map((item) => {
-                    return (
-                      <li key={item.id}>
-                        <h3>{item.text}</h3>
-                        <button onClick={() => this.removeItem(item.id)}>remove</button>
-                      </li>
-                    )
-                  })
-                }
-              </ul>
+          <Router>
+            <div className='appNav'>
+              <nav>
+                <ul>
+                  <li><Link to='/'>Game</Link></li>
+                  <li><Link to='/admin'>Admin</Link></li>
+                  <li><Link to='/help'>Help</Link></li>
+                </ul>
+              </nav>
+              <Route exact path="/" component={Game} />
+              <Route exact path="/admin" component={Admin} />
             </div>
-          </section>
+          </Router>
         </div>
       </div>
     )
